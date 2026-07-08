@@ -15,7 +15,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .now .ico{font-size:42px}.now .t{font-size:34px;font-weight:700}
 .now .d{font-size:13px;color:var(--sub);line-height:1.5}
 .dress{font-size:13px;background:var(--chip);color:var(--acc);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-weight:500}
-.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
 .day{background:var(--card);border-radius:10px;padding:8px 4px;text-align:center;font-size:11px}
 .day.trip{outline:2px solid var(--acc)}
 .day .nm{font-weight:700;margin-bottom:2px}.day .ic{font-size:20px;margin:2px 0}
@@ -24,7 +24,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ft{margin-top:8px;font-size:11px;color:var(--sub);text-align:center}
 .err{padding:14px;background:var(--card);border-radius:12px;font-size:13px;line-height:1.6}
 a{color:var(--acc)}
-@media(max-width:420px){.days{grid-template-columns:repeat(4,1fr)}.day:nth-child(n+5){display:none}}
+@media(max-width:440px){.days{gap:4px}.day{padding:6px 1px;font-size:10px}.day .ic{font-size:15px;margin:1px 0}.day .hi{font-size:12px}.day .nm{font-size:9px}.day .rn{font-size:9px}}
 </style></head><body>
 <div class="tabs"><button class="tab on" id="tb0">Waikīkī</button><button class="tab" id="tb1">North Shore</button><button class="tab" id="tb2">📍 Here</button></div>
 <div id="out"><div class="err">Loading official NWS forecast…</div></div>
