@@ -1,0 +1,84 @@
+<!-- Live weather widget embedded on the Notion command center.
+     Source: api.weather.gov (NWS/NOAA official, free, no key). Gridpoints hardcoded
+     (Waikiki HFO/156,143 · Haleiwa HFO/144,157) with /points re-resolution fallback.
+     To update: edit this file, upload via notion-create-attachment, swap the <embed> src on the page. -->
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#fff;--card:#f6f7f8;--txt:#1f2328;--sub:#6a737d;--acc:#0b7285;--chip:#e7f5f7}
+@media(prefers-color-scheme:dark){:root{--bg:#191919;--card:#242424;--txt:#ecebe9;--sub:#9b9998;--acc:#5cc8d7;--chip:#173a40}}
+*{box-sizing:border-box;margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);padding:10px}
+.tabs{display:flex;gap:8px;margin-bottom:10px}
+.tab{border:none;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;background:var(--card);color:var(--sub);cursor:pointer}
+.tab.on{background:var(--acc);color:#fff}
+.now{display:flex;align-items:center;gap:14px;background:var(--card);border-radius:14px;padding:12px 16px;margin-bottom:10px}
+.now .ico{font-size:42px}.now .t{font-size:34px;font-weight:700}
+.now .d{font-size:13px;color:var(--sub);line-height:1.5}
+.dress{font-size:13px;background:var(--chip);color:var(--acc);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-weight:500}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day{background:var(--card);border-radius:10px;padding:8px 4px;text-align:center;font-size:11px}
+.day.trip{outline:2px solid var(--acc)}
+.day .nm{font-weight:700;margin-bottom:2px}.day .ic{font-size:20px;margin:2px 0}
+.day .hi{font-weight:700;font-size:13px}.day .lo{color:var(--sub)}
+.day .rn{color:var(--sub);font-size:10px;margin-top:2px}
+.ft{margin-top:8px;font-size:11px;color:var(--sub);text-align:center}
+.err{padding:14px;background:var(--card);border-radius:12px;font-size:13px;line-height:1.6}
+a{color:var(--acc)}
+@media(max-width:420px){.days{grid-template-columns:repeat(4,1fr)}.day:nth-child(n+5){display:none}}
+</style></head><body>
+<div class="tabs"><button class="tab on" id="tb0">Waikīkī</button><button class="tab" id="tb1">North Shore</button><button class="tab" id="tb2">📍 Here</button></div>
+<div id="out"><div class="err">Loading official NWS forecast…</div></div>
+<script>
+const LOCS=[
+ {n:"Waikīkī",la:21.2776,lo:-157.8262,f:"https://api.weather.gov/gridpoints/HFO/156,143/forecast",h:"https://api.weather.gov/gridpoints/HFO/156,143/forecast/hourly"},
+ {n:"North Shore (Hale'iwa)",la:21.59,lo:-158.103,f:"https://api.weather.gov/gridpoints/HFO/144,157/forecast",h:"https://api.weather.gov/gridpoints/HFO/144,157/forecast/hourly"}];
+const TRIP=["2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20"];
+const EMO=s=>{s=s.toLowerCase();
+ if(/thunder/.test(s))return"⛈️";
+ if(/(showers|rain|drizzle)/.test(s))return/(sunny|clear|partly|isolated|slight|scattered)/.test(s)?"🌦️":"🌧️";
+ if(/(fog|haze|smoke)/.test(s))return"🌫️";
+ if(/mostly sunny/.test(s))return"🌤️";
+ if(/partly/.test(s))return"⛅";
+ if(/(mostly cloudy|cloudy|overcast)/.test(s))return"☁️";
+ if(/(sunny|clear)/.test(s))return"☀️";
+ return"🌤️"};
+const wmax=w=>{const m=(w||"").match(/\d+/g);return m?Math.max(...m.map(Number)):0};
+const pop=p=>(p&&p.value!=null)?p.value:0;
+let DATA=[null,null,null],cur=0;
+function days(periods){const out=[];
+ for(const p of periods){const d=p.startTime.slice(0,10);
+  if(p.isDaytime){if(out.length>=7)break;
+   out.push({date:d,nm:new Date(d+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",timeZone:"Pacific/Honolulu"}),hi:p.temperature,lo:null,sf:p.shortForecast,pp:pop(p.probabilityOfPrecipitation)});}
+  else if(out.length&&out[out.length-1].lo==null)out[out.length-1].lo=p.temperature;}
+ return out;}
+function dress(d0,windStr){let p=[];p.push(d0.hi>=85?"Shorts + tank weather":"Shorts + light top");
+ p.push("July midday UV: high–extreme — hat + mineral SPF");
+ if(d0.pp>=50)p.push(d0.pp+"% rain — pack the shell (showers pass fast)");else if(d0.pp>=25)p.push("stray shower possible");
+ const w=wmax(windStr);if(w>=20)p.push("breezy "+w+"mph trades — hold the hat");
+ return"👕 "+p.join(" · ");}
+function render(){const D=DATA[cur],o=document.getElementById("out");if(!D){o.innerHTML='<div class="err">Loading…</div>';return}
+ const n=D.now,ds=D.days;
+ let h='<div class="now"><div class="ico">'+EMO(n.shortForecast)+'</div><div><div class="t">'+n.temperature+'°F</div><div class="d">'+n.shortForecast+' · humidity '+((n.relativeHumidity&&n.relativeHumidity.value)||"–")+'% · wind '+n.windSpeed+' · rain '+pop(n.probabilityOfPrecipitation)+'%</div></div></div>';
+ if(ds.length)h+='<div class="dress">'+dress(ds[0],n.windSpeed)+'</div>';
+ h+='<div class="days">';
+ for(const d of ds)h+='<div class="day'+(TRIP.includes(d.date)?" trip":"")+'"><div class="nm">'+d.nm+'</div><div class="ic">'+EMO(d.sf)+'</div><div class="hi">'+d.hi+'°</div><div class="lo">'+(d.lo!=null?d.lo+"°":"—")+'</div><div class="rn">💧'+d.pp+'%</div></div>';
+ h+='</div><div class="ft">'+(cur==2?(D.label||"Current location"):LOCS[cur].n)+' · official NWS/NOAA forecast · outlined days = your trip</div>';o.innerHTML=h;}
+async function gj(u){const r=await fetch(u,{headers:{accept:"application/geo+json"}});if(!r.ok)throw 0;return r.json();}
+async function load(i){const L=LOCS[i];let f=L.f,h=L.h,fj,hj;
+ try{fj=await gj(f);hj=await gj(h);}
+ catch(e){const pts=await gj("https://api.weather.gov/points/"+L.la+","+L.lo);
+  f=pts.properties.forecast;h=pts.properties.forecastHourly;fj=await gj(f);hj=await gj(h);}
+ DATA[i]={days:days(fj.properties.periods),now:hj.properties.periods[0]};}
+async function loadHere(){document.getElementById("out").innerHTML='<div class="err">Locating…</div>';
+ const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:8000}));
+ const la=pos.coords.latitude.toFixed(4),lo=pos.coords.longitude.toFixed(4);
+ const pts=await gj("https://api.weather.gov/points/"+la+","+lo);
+ const rl=pts.properties.relativeLocation&&pts.properties.relativeLocation.properties;
+ const fj=await gj(pts.properties.forecast),hj=await gj(pts.properties.forecastHourly);
+ DATA[2]={days:days(fj.properties.periods),now:hj.properties.periods[0],label:rl?("Near "+rl.city+", "+rl.state):"Current location"};}
+function sw(i){cur=i;for(let k=0;k<3;k++)document.getElementById("tb"+k).classList.toggle("on",k==i);
+ if(i==2&&!DATA[2]){loadHere().then(render).catch(()=>{document.getElementById("out").innerHTML='<div class="err">Location is blocked in this embed — use the Waikīkī / North Shore tabs.</div>';});return;}
+ render();}
+for(let k=0;k<3;k++)document.getElementById("tb"+k).onclick=()=>sw(k);
+Promise.all([load(0),load(1)]).then(render).catch(()=>{document.getElementById("out").innerHTML='<div class="err">Live data blocked in this view. Open the official <a href="https://forecast.weather.gov/MapClick.php?lat=21.3069&lon=-157.8583" target="_blank">NWS Honolulu forecast</a> instead.</div>';});
+</script></body></html>

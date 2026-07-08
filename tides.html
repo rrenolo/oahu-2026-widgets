@@ -1,0 +1,79 @@
+<!-- Tide widget embedded on the Notion command center (separate block under the weather widget).
+     Source: NOAA CO-OPS Tides & Currents API (free, no key, CORS *). Datum MLLW, station-local time (HST).
+     Stations verified 2026-07-08 via mdapi: 1612340 HONOLULU (Waikiki) · 1612668 Haleiwa/Waialua Bay (North Shore)
+     · 1612301 Hanauma Bay · plus nearest-pool for the geolocation tab.
+     To update: edit -> notion-create-attachment -> swap <embed> src on the page. -->
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#fff;--card:#f6f7f8;--txt:#1f2328;--sub:#6a737d;--acc:#0b7285;--chip:#e7f5f7;--hi:#0b7285;--lo:#b08900}
+@media(prefers-color-scheme:dark){:root{--bg:#191919;--card:#242424;--txt:#ecebe9;--sub:#9b9998;--acc:#5cc8d7;--chip:#173a40;--hi:#5cc8d7;--lo:#e3c05c}}
+*{box-sizing:border-box;margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);padding:10px}
+.tabs{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.tab{border:none;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;background:var(--card);color:var(--sub);cursor:pointer}
+.tab.on{background:var(--acc);color:#fff}
+.next{display:flex;align-items:center;gap:14px;background:var(--card);border-radius:14px;padding:12px 16px;margin-bottom:10px}
+.next .ico{font-size:38px}.next .t{font-size:22px;font-weight:700}
+.next .d{font-size:13px;color:var(--sub);line-height:1.5}
+.rows{display:flex;flex-direction:column;gap:6px}
+.row{background:var(--card);border-radius:10px;padding:8px 12px;font-size:13px}
+.row .lbl{font-weight:700;font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.evs{display:flex;flex-wrap:wrap;gap:6px 14px}
+.ev{white-space:nowrap}
+.ev .H{color:var(--hi);font-weight:700}.ev .L{color:var(--lo);font-weight:700}
+.ft{margin-top:8px;font-size:11px;color:var(--sub);text-align:center}
+.err{padding:14px;background:var(--card);border-radius:12px;font-size:13px;line-height:1.6}
+a{color:var(--acc)}
+</style></head><body>
+<div class="tabs">
+<button class="tab on" id="tt0">Waikīkī</button>
+<button class="tab" id="tt1">North Shore</button>
+<button class="tab" id="tt2">Hanauma</button>
+<button class="tab" id="tt3">📍 Near me</button>
+</div>
+<div id="out"><div class="err">Loading NOAA tide predictions…</div></div>
+<script>
+const ST=[
+ {id:"1612340",n:"Honolulu Harbor (Waikīkī side)",la:21.303,lo:-157.865},
+ {id:"1612668",n:"Hale'iwa · Waialua Bay",la:21.598,lo:-158.108},
+ {id:"1612301",n:"Hanauma Bay",la:21.275,lo:-157.697}];
+const POOL=ST.concat([
+ {id:"1612482",n:"Wai'anae (Ko Olina side)",la:21.445,lo:-158.192},
+ {id:"1612376",n:"Waimanalo",la:21.335,lo:-157.693},
+ {id:"1612480",n:"Moku o Lo'e (Kāne'ohe Bay)",la:21.433,lo:-157.79},
+ {id:"TPT2779",n:"Lā'ie Bay",la:21.65,lo:-157.933}]);
+let DATA={},cur=0,HERE=null;
+const hstNow=()=>new Date();
+function hstDate(off){const d=new Date(Date.now()+off*864e5);
+ const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Pacific/Honolulu",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
+ return p.replaceAll("-","");}
+function fmt(t){const[dd,hm]=t.split(" ");let[h,m]=hm.split(":").map(Number);const ap=h>=12?"pm":"am";h=h%12||12;return h+":"+String(m).padStart(2,"0")+ap;}
+function epoch(t){return new Date(t.replace(" ","T")+":00-10:00").getTime();}
+async function load(st){if(DATA[st.id])return DATA[st.id];
+ const u="https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&datum=MLLW&interval=hilo&begin_date="+hstDate(0)+"&end_date="+hstDate(1)+"&station="+st.id+"&time_zone=lst_ldt&units=english&format=json";
+ const r=await fetch(u);if(!r.ok)throw 0;const j=await r.json();if(!j.predictions)throw 0;
+ DATA[st.id]=j.predictions;return j.predictions;}
+function render(st,preds){const now=Date.now();
+ const today=hstDate(0),tmrw=hstDate(1);
+ const evs=preds.map(p=>({e:epoch(p.t),t:p.t,d:p.t.slice(0,10).replaceAll("-",""),v:(+p.v).toFixed(1),y:p.type}));
+ const nxt=evs.find(x=>x.e>now);
+ let h="";
+ if(nxt){const mins=Math.round((nxt.e-now)/6e4),hh=Math.floor(mins/60),mm=mins%60;
+  h+='<div class="next"><div class="ico">'+(nxt.y=="H"?"🌊":"🏖️")+'</div><div><div class="t">'+(nxt.y=="H"?"High":"Low")+" "+fmt(nxt.t)+" · "+nxt.v+' ft</div><div class="d">next tide — in '+(hh?hh+"h ":"")+mm+"m · "+st.n+'</div></div></div>';}
+ const line=d=>'<div class="evs">'+evs.filter(x=>x.d==d).map(x=>'<span class="ev"><span class="'+x.y+'">'+(x.y=="H"?"▲":"▽")+" "+fmt(x.t)+'</span> '+x.v+"ft</span>").join("")+"</div>";
+ h+='<div class="rows"><div class="row"><div class="lbl">Today</div>'+line(today)+'</div><div class="row"><div class="lbl">Tomorrow</div>'+line(tmrw)+'</div></div>';
+ h+='<div class="ft">NOAA CO-OPS predictions · MLLW · station-local time (HST)</div>';
+ document.getElementById("out").innerHTML=h;}
+function err(m){document.getElementById("out").innerHTML='<div class="err">'+m+' Backup: <a href="https://tidesandcurrents.noaa.gov/noaatidepredictions.html?id=1612340" target="_blank">NOAA Honolulu tide tables</a>.</div>';}
+async function show(i){cur=i;for(let k=0;k<4;k++)document.getElementById("tt"+k).classList.toggle("on",k==i);
+ try{
+  if(i<3){render(ST[i],await load(ST[i]));return;}
+  document.getElementById("out").innerHTML='<div class="err">Finding the nearest tide station…</div>';
+  if(!HERE){await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(p=>{HERE=p.coords;res();},rej,{timeout:8000}));}
+  let best=null,bd=1e9;
+  for(const s of POOL){const dx=(s.lo-HERE.longitude)*Math.cos(HERE.latitude*Math.PI/180),dy=s.la-HERE.latitude,d=dx*dx+dy*dy;if(d<bd){bd=d;best=s;}}
+  render(best,await load(best));
+ }catch(e){if(i==3)err("Location is blocked in this embed — use the station tabs.");else err("Tide service unreachable right now.");}}
+for(let k=0;k<4;k++)document.getElementById("tt"+k).onclick=()=>show(k);
+show(0);
+</script></body></html>
